@@ -1,0 +1,272 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ContestPhase {
+  phase0
+  phase1
+  phase2
+}
+
+enum CoinTier {
+  major
+  mid
+  small
+}
+
+enum OracleSource {
+  chainlink
+  pyth
+}
+
+enum ContestFormat {
+  quick
+  classic
+  weekly
+}
+
+enum ContestStatus {
+  draft
+  open
+  locked
+  closed
+  settled
+  refunded
+  cancelled
+}
+
+enum RosterStatus {
+  pending
+  confirmed
+  failed
+  refunded
+}
+
+enum SnapshotType {
+  lock
+  close
+}
+
+enum PayoutStatus {
+  pending
+  claimable
+  claimed
+  refunded
+  voided
+}
+
+enum TransactionType {
+  entry
+  payout
+  refund
+}
+
+enum TransactionStatus {
+  pending
+  confirmed
+  failed
+  cancelled
+}
+
+enum SalaryRefreshRunStatus {
+  running
+  succeeded
+  failed
+  dry_run
+}
+
+model User {
+  id            String        @id @default(uuid()) @db.Uuid
+  fid           BigInt?       @unique
+  walletAddress String?       @unique @db.VarChar(64)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rosters       Roster[]
+  transactions  Transaction[]
+
+  @@map("users")
+}
+
+model Coin {
+  id                 String          @id @default(uuid()) @db.Uuid
+  symbol             String          @unique @db.VarChar(16)
+  name               String          @db.VarChar(64)
+  tier               CoinTier
+  currentSalary      Int             @map("current_salary")
+  marketCapUsd       Decimal         @map("market_cap_usd") @db.Decimal(30, 6)
+  oracleFeedAddress  String          @map("oracle_feed_address") @db.VarChar(128)
+  oracleSource       OracleSource    @map("oracle_source")
+  isActive           Boolean         @default(true) @map("is_active")
+  lastSalaryUpdateAt DateTime?       @map("last_salary_update_at") @db.Timestamptz(6)
+  metadata           Json            @default("{}")
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rosterCoins        RosterCoin[]
+  priceSnapshots     PriceSnapshot[]
+  priceSamples       PriceSample[]
+
+  @@index([isActive, tier])
+  @@map("coins")
+}
+
+model SalaryRefreshRun {
+  id                String                 @id @default(uuid()) @db.Uuid
+  source            String                 @db.VarChar(40)
+  status            SalaryRefreshRunStatus
+  dryRun            Boolean                @default(false) @map("dry_run")
+  triggeredBy       String                 @map("triggered_by") @db.VarChar(80)
+  candidateCount    Int                    @default(0) @map("candidate_count")
+  eligibleCount     Int                    @default(0) @map("eligible_count")
+  ineligibleCount   Int                    @default(0) @map("ineligible_count")
+  startedAt         DateTime               @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt       DateTime?              @map("completed_at") @db.Timestamptz(6)
+  errorCode         String?                @map("error_code") @db.VarChar(64)
+  errorMessage      String?                @map("error_message") @db.Text
+  metadata          Json                   @default("{}")
+
+  @@index([status, startedAt])
+  @@map("salary_refresh_runs")
+}
+
+model Contest {
+  id                 String          @id @default(uuid()) @db.Uuid
+  slug               String          @unique @db.VarChar(80)
+  title              String          @db.VarChar(120)
+  description        String?         @db.Text
+  phase              ContestPhase
+  format             ContestFormat
+  status             ContestStatus   @default(open)
+  entryFeeWei        BigInt          @default(0) @map("entry_fee_wei")
+  salaryCap          Int             @map("salary_cap")
+  prizePoolWei       BigInt          @default(0) @map("prize_pool_wei")
+  rakeBps            Int             @default(1000) @map("rake_bps")
+  maxEntriesPerUser  Int             @map("max_entries_per_user")
+  minEntriesRequired Int             @map("min_entries_required")
+  lockTime           DateTime        @map("lock_time") @db.Timestamptz(6)
+  closeTime          DateTime        @map("close_time") @db.Timestamptz(6)
+  contractAddress    String?         @map("contract_address") @db.VarChar(64)
+  contractContestId  BigInt?         @map("contract_contest_id")
+  payoutStructure    Json            @default("{}") @map("payout_structure")
+  tiebreakerPolicy   Json            @map("tiebreaker_policy")
+  metadata           Json            @default("{}")
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rosters            Roster[]
+  priceSnapshots     PriceSnapshot[]
+  results            Result[]
+  transactions       Transaction[]
+
+  @@index([phase, status, lockTime])
+  @@map("contests")
+}
+
+model Roster {
+  id                String         @id @default(uuid()) @db.Uuid
+  contestId         String         @map("contest_id") @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  captainCoinId     String?        @map("captain_coin_id") @db.Uuid
+  salaryUsed        Int            @map("salary_used")
+  commitmentHash    String?        @map("commitment_hash") @db.VarChar(66)
+  submittedAt       DateTime       @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  txHash            String?        @map("tx_hash") @db.VarChar(66)
+  status            RosterStatus   @default(pending)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  contest           Contest        @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rosterCoins       RosterCoin[]
+  result            Result?
+
+  @@index([contestId, userId])
+  @@map("rosters")
+}
+
+model RosterCoin {
+  rosterId    String   @map("roster_id") @db.Uuid
+  coinId      String   @map("coin_id") @db.Uuid
+  slotNumber  Int      @map("slot_number")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  roster      Roster   @relation(fields: [rosterId], references: [id], onDelete: Cascade)
+  coin        Coin     @relation(fields: [coinId], references: [id], onDelete: Restrict)
+
+  @@id([rosterId, slotNumber])
+  @@unique([rosterId, coinId])
+  @@map("roster_coins")
+}
+
+model PriceSnapshot {
+  id            String       @id @default(uuid()) @db.Uuid
+  contestId     String       @map("contest_id") @db.Uuid
+  coinId        String       @map("coin_id") @db.Uuid
+  snapshotType  SnapshotType @map("snapshot_type")
+  twapPriceUsd  Decimal      @map("twap_price_usd") @db.Decimal(30, 10)
+  sampleCount   Int          @map("sample_count")
+  windowStart   DateTime     @map("window_start") @db.Timestamptz(6)
+  windowEnd     DateTime     @map("window_end") @db.Timestamptz(6)
+  recordedAt    DateTime     @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  contest       Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  coin          Coin         @relation(fields: [coinId], references: [id], onDelete: Restrict)
+  rawSamples    PriceSample[]
+
+  @@unique([contestId, coinId, snapshotType])
+  @@map("price_snapshots")
+}
+
+model PriceSample {
+  id              String        @id @default(uuid()) @db.Uuid
+  priceSnapshotId String        @map("price_snapshot_id") @db.Uuid
+  contestId       String        @map("contest_id") @db.Uuid
+  coinId          String        @map("coin_id") @db.Uuid
+  sampleIndex     Int           @map("sample_index")
+  priceUsd        Decimal       @map("price_usd") @db.Decimal(30, 10)
+  sourceTimestamp DateTime      @map("source_timestamp") @db.Timestamptz(6)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  snapshot        PriceSnapshot @relation(fields: [priceSnapshotId], references: [id], onDelete: Cascade)
+  coin            Coin          @relation(fields: [coinId], references: [id], onDelete: Restrict)
+
+  @@unique([priceSnapshotId, sampleIndex])
+  @@map("price_samples")
+}
+
+model Result {
+  id            String       @id @default(uuid()) @db.Uuid
+  contestId     String       @map("contest_id") @db.Uuid
+  rosterId      String       @unique @map("roster_id") @db.Uuid
+  rawScore      Decimal      @map("raw_score") @db.Decimal(20, 10)
+  finalScore    Decimal      @map("final_score") @db.Decimal(20, 10)
+  rank          Int
+  payoutAmount  BigInt       @default(0) @map("payout_amount")
+  payoutStatus  PayoutStatus @default(pending) @map("payout_status")
+  payoutTxHash  String?      @map("payout_tx_hash") @db.VarChar(66)
+  tiebreakMeta  Json         @default("{}") @map("tiebreak_meta")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  contest       Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  roster        Roster       @relation(fields: [rosterId], references: [id], onDelete: Cascade)
+
+  @@unique([contestId, rank])
+  @@map("results")
+}
+
+model Transaction {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  contestId   String            @map("contest_id") @db.Uuid
+  type        TransactionType
+  amountWei   BigInt            @map("amount_wei")
+  txHash      String?           @map("tx_hash") @db.VarChar(66)
+  status      TransactionStatus @default(pending)
+  metadata    Json              @default("{}")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contest     Contest           @relation(fields: [contestId], references: [id], onDelete: Cascade)
+
+  @@index([contestId, type, status])
+  @@map("transactions")
+}

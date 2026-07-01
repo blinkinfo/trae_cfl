@@ -1,0 +1,42 @@
+{
+  "name": "crypto-fantasy-platform",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.14.0",
+    "next": "16.2.10",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.12",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "eslint": "^9.34.0",
+    "eslint-config-next": "16.2.10",
+    "prisma": "^6.14.0",
+    "tailwindcss": "^4.1.12",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

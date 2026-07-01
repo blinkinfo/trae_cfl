@@ -1,0 +1,12 @@
+- [ ] The spec defines a single end-to-end product scope that combines the game rules and the technical build document
+- [ ] The phased delivery model clearly separates Phase 0, Phase 1, and Phase 2 with explicit progression gates
+- [ ] Contest creation, listing, roster submission, lock, close, settlement, refund, and payout claim flows are all covered
+- [ ] Roster validation rules cover roster size, unique coins, salary cap, lock cutoff, captain behavior, and entry limits
+- [ ] Coin pool management covers eligibility criteria and excludes coins without reliable oracle coverage
+- [ ] Salary recalculation requirements include a log-scaled market-cap model and scheduled refresh behavior
+- [ ] TWAP snapshotting requirements cover raw sample capture, averaged prices, and oracle failure handling
+- [ ] Scoring requirements cover percentage-based scoring, captain multiplier support, negative scores, and published tiebreakers
+- [ ] Smart contract requirements cover escrow, refunds, pull-based payouts, events, role separation, and reentrancy protection
+- [ ] Frontend requirements cover the Farcaster mini app manifest, readiness signaling, auth, and all required screens
+- [ ] Testing requirements cover money-sensitive contract logic, backend calculations, and end-to-end contest verification
+- [ ] Security and operations requirements cover secrets, rate limiting, monitoring, static analysis, and human review before mainnet
